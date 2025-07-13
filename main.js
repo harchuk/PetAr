@@ -29,13 +29,28 @@ const answerSection = document.getElementById('answerSection');
 const answerText = document.getElementById('answerText');
 const msgInput = document.getElementById('msgInput');
 const sendBtn = document.getElementById('sendBtn');
+const clearHistoryBtn = document.getElementById('clearHistory');
 const messages = document.getElementById('messages');
 
-function append(text) {
+loadHistory();
+
+function appendMessage(sender, text, time = Date.now(), save = true) {
   const div = document.createElement('div');
-  div.textContent = text;
+  const ts = new Date(time).toLocaleTimeString();
+  div.textContent = `[${ts}] ${sender}: ${text}`;
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
+
+  if (save) {
+    const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    history.push({ sender, text, time });
+    localStorage.setItem('chatHistory', JSON.stringify(history));
+  }
+}
+
+function loadHistory() {
+  const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+  history.forEach(msg => appendMessage(msg.sender, msg.text, msg.time, false));
 }
 
 function encrypt(msg) {
@@ -65,11 +80,11 @@ function startHost() {
   peer.on('connect', () => {
     sharedKey = sodium.crypto_box_beforenm(remotePublicKey, mySecretKey);
     document.getElementById('chat').style.display = 'block';
-    append('Соединение установлено');
+    appendMessage('System', 'Соединение установлено');
   });
   peer.on('data', data => {
     const msg = decrypt(data);
-    append('Друг: ' + msg);
+    appendMessage('Друг', msg);
   });
 }
 
@@ -83,11 +98,11 @@ function startGuest(remote) {
   peer.on('connect', () => {
     sharedKey = sodium.crypto_box_beforenm(remotePublicKey, mySecretKey);
     document.getElementById('chat').style.display = 'block';
-    append('Соединение установлено');
+    appendMessage('System', 'Соединение установлено');
   });
   peer.on('data', data => {
     const msg = decrypt(data);
-    append('Друг: ' + msg);
+    appendMessage('Друг', msg);
   });
   peer.signal(remote.offer);
 }
@@ -104,8 +119,13 @@ sendBtn.onclick = () => {
   const msg = msgInput.value;
   if (!msg) return;
   peer.send(encrypt(msg));
-  append('Вы: ' + msg);
+  appendMessage('Вы', msg);
   msgInput.value = '';
+};
+
+clearHistoryBtn.onclick = () => {
+  localStorage.removeItem('chatHistory');
+  messages.innerHTML = '';
 };
 
 if (location.hash) {
