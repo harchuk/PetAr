@@ -1,25 +1,19 @@
-# PetAR
+# Минимальный P2P мессенджер
 
-A simple prototype demonstrating how a pet can be visualized in AR.
+Этот репозиторий содержит пример полностью клиентского чата, который работает без собственного сервера. Обмен сообщениями происходит напрямую между двумя браузерами через WebRTC, а данные шифруются библиотекой `libsodium`.
 
-This project is a SwiftUI skeleton meant for experimentation. It contains
-placeholder views and models that can be expanded into a full iOS
-application.
+## Как запустить
 
-## Structure
+1. Откройте `index.html` на каком‑нибудь веб‑сервере (например, Github Pages или `npx serve`).
+2. Введите имя и нажмите «Создать чат». Появится ссылка‑приглашение.
+3. Отправьте ссылку собеседнику. Он откроет её в браузере, после чего увидит текст, который нужно переслать обратно.
+4. Вставьте полученный ответ в поле «Ответ от друга» и нажмите «Подключиться». После установления соединения сообщения идут напрямую между браузерами.
 
-- **Models** – Swift structs representing domain data (e.g., `PetProfile`).
-- **Views** – SwiftUI views like the media `UploadView` and AR scene `ARViewWrapper`.
-- **Controllers** – Simple controllers (e.g., `PetARController`) that manage state.
-- **Services** – Stand-in services such as `MediaImportService` for handling media import.
-- **Assets** – Place to store 3D models or UI resources.
+## Архитектура
 
-## Getting Started
+- **Обмен peer‑to‑peer**: используется `SimplePeer` (WebRTC). Предложение (`offer`) и ответ (`answer`) пересылаются вручную через ссылку и текстовое поле, поэтому выделенный сервер не требуется. Для установления соединения используются публичные STUN‑серверы Google.
+- **Шифрование**: каждый клиент генерирует пару ключей с помощью `libsodium` (`crypto_box_keypair`). Перед отправкой сообщение шифруется при помощи `crypto_secretbox_easy` с ключом, полученным из `crypto_box_beforenm`. Ключ выводится из ECDH между приватным ключом отправителя и публичным ключом получателя.
+- **Управление ключами**: при первом запуске ключевая пара создаётся и сохраняется в `localStorage`, чтобы при перезагрузке страницы не терять идентичность пользователя.
+- **Инициация соединения**: инициатор создаёт `offer` и формирует ссылку вида `https://example.com/#<данные>` (в них входят offer, публичный ключ и имя). Гость открывает ссылку, создаёт `answer` и отправляет его обратно любым удобным способом (например, по электронной почте). После того как инициатор вставит `answer`, соединение завершается, и участники могут обмениваться зашифрованными сообщениями по WebRTC‑каналу.
 
-1. Open the project in Xcode on macOS.
-2. Add your own Swift Package or Xcode project settings.
-3. Build and run on a device that supports ARKit.
-
-This repository only provides the basic building blocks. Feel free to
-extend it with real functionality like generating 3D models from photos,
-animating the pet, and responding to user interactions.
+Этот пример демонстрирует принципы построения децентрализованных веб‑приложений: вся логика работает в браузере, данные хранятся только на клиентской стороне, а сервер используется лишь для отдачи статических файлов.
